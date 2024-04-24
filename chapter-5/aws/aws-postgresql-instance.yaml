@@ -1,0 +1,12 @@
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: orange-test-composition
+spec:
+  parameters:
+    storageGB: 10
+  compositionSelector:
+    matchLabels:
+      provider: aws-provider
+  writeConnectionSecretToRef:
+    name: db-orange-test-composition

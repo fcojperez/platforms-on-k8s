@@ -20,38 +20,37 @@ Let's install [Crossplane](https://crossplane.io) into its own namespace using H
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system --create-namespace crossplane-stable/crossplane --wait
-```
-
-Install the `kubectl crossplane` plugin: 
-
-```shell
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
-sudo mv kubectl-crossplane /usr/local/bin
-```
-
-Then install the Crossplane AWS provider: 
-```shell
-kubectl crossplane install provider crossplane/provider-aws:v0.21.2
+helm install crossplane \
+crossplane-stable/crossplane \
+--namespace crossplane-system \
+--create-namespace \
+--set provider.packages='{xpkg.upbound.io/crossplane-contrib/provider-aws:v0.39.0}' --wait
 ```
 
 After a few seconds, if you check the configured providers, you should see the Helm `INSTALLED` and `HEALTHY`: 
 
 ```shell
-> kubectl get providers.pkg.crossplane.io
-NAME                             INSTALLED   HEALTHY   PACKAGE                               AGE
-crossplane-provider-aws         True        True      crossplane/provider-aws:v0.21.2       49s
+kubectl get providers.pkg.crossplane.io
+NAME                              INSTALLED   HEALTHY   PACKAGE                                                   AGE
+crossplane-contrib-provider-aws   True        True      xpkg.upbound.io/crossplane-contrib/provider-aws:v0.39.0   26s
 ```
 
 Now we are ready to install our Databases and Message Brokers Crossplane compositions to provision all the components our application needs to work.
 
 ## App Infrastructure on demand using Crossplane Compositions
 
-We need to install our Crossplane Compositions for our Key-Value Database (Redis), our SQL Database (PostgreSQL) and our Message Broker(Kafka). 
+We need to install our Crossplane Composite Resource Definitions (XRDs) for our Key-Value Database (Redis), our SQL Database (PostgreSQL), and our Message Broker (Kafka).
 
-```shell
-kubectl apply -f resources/
+```bash
+kubectl apply -f resources/definitions
 ```
+Now install the corresponding Crossplane Compositions and initialization data:
+
+```bash
+kubectl apply -f resources/compositions
+kubectl apply -f resources/config
+```
+
 
 The Crossplane Composition resource (`app-database-redis.yaml`) defines which cloud resources need to be created and how they must be configured together. The Crossplane Composite Resource Definition (XRD) (`app-database-resource.yaml`) defines a simplified interface that enables application development teams to quickly request new databases by creating resources of this type.
 
@@ -78,10 +77,10 @@ Create a ProviderConfig
 
 ```shell
 cat <<EOF | kubectl apply -f -
-apiVersion: aws.upbound.io/v1beta1
+apiVersion: aws.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: default
+  name: aws-provider
 spec:
   credentials:
     source: Secret
@@ -91,6 +90,15 @@ spec:
       key: creds
 EOF
 ```
+
+Checking out the secret and ProviderConfiguration have been created
+
+```shell
+kubectl -n crossplane-system get secrets aws-secret
+
+kubectl get providerconfig aws-provider
+```
+
 
 ### Let's provision Application Infrastructure
 

@@ -1,0 +1,62 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: compositepostgresqlinstances.aws.database.example.org
+  labels:
+    provider: aws-provider
+    guide: quickstart
+    vpc: vpc-07e3225330bbab877
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  compositeTypeRef:
+    apiVersion: database.example.org/v1alpha1
+    kind: CompositePostgreSQLInstance
+  resources:
+    - name: rdsinstance
+      base:
+        apiVersion: database.aws.crossplane.io/v1beta1
+        kind: RDSInstance
+        spec:
+          providerConfigRef:
+            name: aws-provider
+          forProvider:
+            dbSubnetGroupName: "orange-subnet-group"
+            region: us-west-2
+            vpcSecurityGroupIds: ["sg-036d2f3a7ef290012"]
+            allocatedStorage: 20
+            autoMinorVersionUpgrade: true
+            backupRetentionPeriod: 0
+            caCertificateIdentifier: rds-ca-2019
+            copyTagsToSnapshot: false
+            dbInstanceClass: db.t3.medium
+            deletionProtection: false
+            enableIAMDatabaseAuthentication: false
+            enablePerformanceInsights: false
+            engine: postgres
+            engineVersion: "13"
+            finalDBSnapshotIdentifier: orange-test
+            masterUsername: orange
+            multiAZ: false
+            port: 5432
+            preferredBackupWindow: 06:15-06:45
+            preferredMaintenanceWindow: sat:09:21-sat:09:51
+            publiclyAccessible: false
+            storageEncrypted: false
+            storageType: gp2
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+            name: default
+      patches:
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-postgresql"
+        - fromFieldPath: "spec.parameters.storageGB"
+          toFieldPath: "spec.forProvider.allocatedStorage"
+      connectionDetails:
+        - fromConnectionSecretKey: username
+        - fromConnectionSecretKey: password
+        - fromConnectionSecretKey: endpoint
+        - fromConnectionSecretKey: port
